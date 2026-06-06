@@ -45,8 +45,6 @@ async def async_setup_platform(
 class MoxCoverEntity(CoverEntity):
     """Mox Cover."""
 
-    _is_closing: bool = False
-    _is_opening: bool = False
     _attr_supported_features = (
         CoverEntityFeature.OPEN
         | CoverEntityFeature.CLOSE
@@ -61,21 +59,15 @@ class MoxCoverEntity(CoverEntity):
         mox_client: MoxClient,
     ) -> None:
         """Create new MoxCoverEntity."""
-        super().__init__()
-        self.device_name = friendly_name or device_name
+        self._attr_name = friendly_name or device_name
         self._curtain = MoxCurtain(device_id, mox_client, self._callback)
         self._attr_unique_id = hex(device_id)
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.device_name
 
     async def _callback(self, device: MoxDevice, state_type: StateType) -> None:
         """Handle callback from mox platform."""
         if state_type == StateType.POSITION:
-            self._is_opening = False
-            self._is_closing = False
+            self._attr_is_opening = False
+            self._attr_is_closing = False
             self.async_write_ha_state()
 
     @property
@@ -88,26 +80,16 @@ class MoxCoverEntity(CoverEntity):
         """Return if the cover is closed, same as position 0."""
         return self._curtain.get_position() == 0
 
-    @property
-    def is_closing(self) -> bool:
-        """Return if the cover is closing or not."""
-        return self._is_closing
-
-    @property
-    def is_opening(self) -> bool:
-        """Return if the cover is opening or not."""
-        return self._is_opening
-
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
         if self._curtain.get_position() < 100:
-            self._is_opening = True
+            self._attr_is_opening = True
             await self._curtain.set_position(100)
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         if self._curtain.get_position() > 0:
-            self._is_closing = True
+            self._attr_is_closing = True
             await self._curtain.set_position(0)
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
@@ -115,8 +97,8 @@ class MoxCoverEntity(CoverEntity):
         new_position = kwargs[ATTR_POSITION]
         cur_position = self._curtain.get_position()
         if cur_position < new_position:
-            self._is_opening = True
+            self._attr_is_opening = True
         elif cur_position > new_position:
-            self._is_closing = True
+            self._attr_is_closing = True
 
         await self._curtain.set_position(new_position)

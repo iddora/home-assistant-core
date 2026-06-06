@@ -48,15 +48,9 @@ class MoxButtonEntity(ButtonEntity):
         mox_client: MoxClient,
     ) -> None:
         """Create new MoxButtonEntity."""
-        super().__init__()
-        self.device_name = friendly_name or device_name
+        self._attr_name = friendly_name or device_name
         self._switch = MoxSwitch(device_id, mox_client)
         self._attr_unique_id = hex(device_id)
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.device_name
 
     async def async_press(self) -> None:
         """Press the button."""

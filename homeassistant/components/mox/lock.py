@@ -7,7 +7,7 @@ from aiomox.device.device import Device
 from aiomox.device.switch import StateType, Switch as MoxSwitch
 from aiomox.mox_client import MoxClient
 
-from homeassistant.components.lock import LockEntity
+from homeassistant.components.lock import LockEntity, LockEntityFeature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -43,6 +43,8 @@ async def async_setup_platform(
 class MoxLockEntity(LockEntity):
     """Mox Lock (Based on a switch)."""
 
+    _attr_supported_features = LockEntityFeature.OPEN
+
     def __init__(
         self,
         device_name: str,
@@ -51,15 +53,9 @@ class MoxLockEntity(LockEntity):
         mox_client: MoxClient,
     ) -> None:
         """Create new MoxSwitchEntity."""
-        super().__init__()
-        self.device_name = friendly_name or device_name
+        self._attr_name = friendly_name or device_name
         self._switch = MoxSwitch(device_id, mox_client, self._callback)
         self._attr_unique_id = hex(device_id)
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.device_name
 
     @property
     def is_locked(self) -> bool | None:

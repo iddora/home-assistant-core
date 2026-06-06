@@ -1,4 +1,4 @@
-"""MOX Button Platform."""
+"""MOX light platform."""
 
 from enum import Enum
 from typing import Any
@@ -54,6 +54,7 @@ async def async_setup_platform(
 class MoxLightEntity(LightEntity):
     """Mox Light."""
 
+    _attr_supported_color_modes: set[ColorMode] = {ColorMode.ONOFF}
     _mox_device: MoxSwitch
 
     def __init__(
@@ -64,37 +65,32 @@ class MoxLightEntity(LightEntity):
         mox_client: MoxClient,
     ) -> None:
         """Create new MoxLightEntity."""
-        super().__init__()
-        self.device_name = friendly_name or device_name
+        self._attr_name = friendly_name or device_name
         self._mox_device = self._create_mox_device(device_id, mox_client)
         self._attr_unique_id = hex(device_id)
 
     def _create_mox_device(self, device_id: int, mox_client: MoxClient) -> MoxSwitch:
-        """return an instance of the mox device."""
+        """Return an instance of the mox device."""
         return MoxSwitch(device_id, mox_client, self._callback)
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.device_name
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return True if entity is on."""
-        return self._mox_device.is_on()
 
     async def _callback(self, device: MoxDevice, state_type: Enum) -> None:
         """Handle callback from mox platform."""
         if state_type == SST.ON_OFF:
+            self._attr_is_on = self._mox_device.is_on()
+            self._attr_color_mode = ColorMode.ONOFF if self._attr_is_on else None
             self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         await self._mox_device.turn_on()
+        self._attr_is_on = True
+        self._attr_color_mode = ColorMode.ONOFF
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         await self._mox_device.turn_off()
+        self._attr_is_on = False
+        self._attr_color_mode = None
 
 
 class MoxDimmerEntity(MoxLightEntity):
@@ -104,38 +100,31 @@ class MoxDimmerEntity(MoxLightEntity):
     _mox_device: MoxDimmer
 
     def _create_mox_device(self, device_id: int, mox_client: MoxClient) -> MoxDimmer:
-        """return an instance of the mox device."""
+        """Return an instance of the mox device."""
         return MoxDimmer(device_id, mox_client, self._callback)
+
+    def _update_brightness_state(self, luminous: int) -> None:
+        """Update entity state from mox luminous value."""
+        self._attr_brightness = MoxDimmerEntity._mox_to_ha(luminous)
+        self._attr_is_on = bool(luminous)
+        self._attr_color_mode = ColorMode.BRIGHTNESS if luminous else None
 
     async def _callback(self, device: MoxDevice, state_type: Enum) -> None:
         """Handle callback from mox platform."""
         if state_type == DST.LUMINOUS:
+            self._update_brightness_state(self._mox_device.get_luminous())
             self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
-        await self._mox_device.set_luminous(
-            MoxDimmerEntity._ha_to_mox(kwargs.get(ATTR_BRIGHTNESS, 255)), 100
-        )
+        luminous = MoxDimmerEntity._ha_to_mox(kwargs.get(ATTR_BRIGHTNESS, 255))
+        await self._mox_device.set_luminous(luminous, 100)
+        self._update_brightness_state(luminous)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
-
         await self._mox_device.set_luminous(0, 100)
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return True if entity is on."""
-        return bool(self._mox_device.get_luminous())
-
-    @property
-    def brightness(self) -> int | None:
-        """Return the brightness of the light.
-
-        This method is optional. Removing it indicates to Home Assistant
-        that brightness is not supported for this light.
-        """
-        return MoxDimmerEntity._mox_to_ha(self._mox_device.get_luminous())
+        self._update_brightness_state(0)
 
     @staticmethod
     def _mox_to_ha(brightness: int) -> int:

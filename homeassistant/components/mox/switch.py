@@ -50,15 +50,9 @@ class MoxSwitchEntity(SwitchEntity):
         mox_client: MoxClient,
     ) -> None:
         """Create new MoxSwitchEntity."""
-        super().__init__()
-        self.device_name = friendly_name or device_name
+        self._attr_name = friendly_name or device_name
         self._switch = MoxSwitch(device_id, mox_client, self.switch_callback)
         self._attr_unique_id = hex(device_id)
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.device_name
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""

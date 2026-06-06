@@ -1,5 +1,4 @@
 """The Mox integration."""
-from __future__ import annotations
 
 import asyncio
 import logging
@@ -16,10 +15,10 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [
     Platform.BUTTON,
-    Platform.SWITCH,
-    Platform.LIGHT,
     Platform.COVER,
+    Platform.LIGHT,
     Platform.LOCK,
+    Platform.SWITCH,
 ]
 
 
